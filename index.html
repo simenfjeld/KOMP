@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>KOMP</title>
+<meta name="theme-color" content="#0B0A0A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KOMP">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ Innlogging / registrering ============ -->
+<section class="screen auth" id="auth" hidden>
+  <div class="wrap body">
+    <h1 class="logo big"><span>KOMP</span></h1>
+
+    <form id="signup-form" class="stack" hidden novalidate>
+      <p class="lead" id="signup-lead">Du er invitert til familiens bildedeling. Lag en bruker for å bli med.</p>
+      <div class="field"><label for="su-name">Navnet ditt</label><input id="su-name" autocomplete="given-name" placeholder="F.eks. Hanne" required></div>
+      <div class="field"><label for="su-email">E-post</label><input id="su-email" type="email" autocomplete="email" inputmode="email" required></div>
+      <div class="field"><label for="su-pw">Passord</label>
+        <div class="pw"><input id="su-pw" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="eye" data-for="su-pw" aria-label="Vis passord"></button></div>
+        <span class="help">Minst 8 tegn.</span></div>
+      <div class="field" id="su-code-wrap"><label for="su-code">Invitasjonskode</label><input id="su-code" autocomplete="off"></div>
+      <p class="err" id="su-err" hidden></p>
+      <button class="cta" type="submit" id="su-btn">Lag bruker</button>
+      <button class="link" type="button" data-go="login">Har du allerede bruker? Logg inn</button>
+    </form>
+
+    <form id="login-form" class="stack" hidden novalidate>
+      <p class="lead">Logg inn for å se bildene fra familien.</p>
+      <div class="field"><label for="li-email">E-post</label><input id="li-email" type="email" autocomplete="email" inputmode="email" required></div>
+      <div class="field"><label for="li-pw">Passord</label>
+        <div class="pw"><input id="li-pw" type="password" autocomplete="current-password" required><button type="button" class="eye" data-for="li-pw" aria-label="Vis passord"></button></div></div>
+      <p class="err" id="li-err" hidden></p>
+      <button class="cta" type="submit" id="li-btn">Logg inn</button>
+      <button class="link" type="button" id="forgot">Glemt passordet?</button>
+      <button class="link" type="button" data-go="signup">Ny her? Lag bruker</button>
+    </form>
+
+    <div id="msg-box" class="stack" hidden>
+      <p class="lead" id="msg-text"></p>
+      <button class="cta" type="button" data-go="login">Til innlogging</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Legg på hjemskjermen ============ -->
+<section class="screen" id="install" hidden>
+  <div class="wrap body">
+    <h1 class="logo big"><span>KOMP</span></h1>
+    <h2 class="title">Legg KOMP på hjemskjermen</h2>
+    <p class="lead">Da åpner du KOMP som en vanlig app, med eget ikon.</p>
+    <ol class="steps">
+      <li><span class="num">1</span><div>Trykk på <b>Del-knappen</b>
+        <svg class="inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Del-ikon"><path d="M12 15V3M8 7l4-4 4 4M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>
+        nederst i Safari. På iPad ligger den øverst.<small>Android: trykk på menyen <b>⋮</b> øverst til høyre i Chrome.</small></div></li>
+      <li><span class="num">2</span><div>Bla ned og velg <b>Legg til på Hjem-skjerm</b>.<small>Android: velg <b>Legg til på startsiden</b> eller <b>Installer app</b>.</small></div></li>
+      <li><span class="num">3</span><div>Trykk <b>Legg til</b>. Åpne så KOMP fra hjemskjermen og logg inn med e-post og passord.</div></li>
+    </ol>
+    <p class="help">Bruker du iPhone eller iPad, må lenken være åpnet i Safari for at dette skal fungere.</p>
+    <button class="cta" type="button" id="install-done">Fortsett til KOMP</button>
+  </div>
+</section>
+
+<!-- ============ Feed ============ -->
+<div id="app" hidden>
+  <header class="bar">
+    <div class="wrap">
+      <h1 class="logo"><span>KOMP</span></h1>
+      <button class="av me-btn" id="me-btn" type="button" aria-label="Meg"></button>
+    </div>
+  </header>
+  <main class="feed wrap">
+    <button class="banner" id="install-banner" type="button" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>
+      <span>Legg KOMP på hjemskjermen</span>
+    </button>
+    <div id="posts" class="posts"><p class="empty">Henter bilder …</p></div>
+  </main>
+  <button class="fab" id="fab" type="button" aria-label="Nytt innlegg">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+  <input type="file" id="file" accept="image/*,video/*" hidden>
+</div>
+
+<!-- ============ Nytt innlegg ============ -->
+<section class="screen" id="compose" hidden aria-label="Nytt innlegg">
+  <div class="bar"><div class="wrap">
+    <button class="iconbtn" id="c-close" type="button" aria-label="Lukk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <h2>Nytt innlegg</h2>
+  </div></div>
+  <div class="wrap body">
+    <div class="cropbox" id="cropbox">
+      <div class="frame" id="frame"><img id="c-img" alt="Bildet du skal dele"></div>
+      <video id="c-video" playsinline controls muted hidden></video>
+    </div>
+    <div id="img-tools" class="stack">
+      <div class="zoomrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M8 10.5h5M15.5 15.5L20 20"/></svg>
+        <input type="range" id="zoom" min="1" max="3" step="0.01" value="1" aria-label="Zoom">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M8 10.5h5M10.5 8v5M15.5 15.5L20 20"/></svg>
+      </div>
+      <div class="ratios" id="ratios">
+        <button class="chip" type="button" data-r="0" aria-pressed="true">Original</button>
+        <button class="chip" type="button" data-r="1" aria-pressed="false">1:1</button>
+        <button class="chip" type="button" data-r="0.8" aria-pressed="false">4:5</button>
+        <button class="chip" type="button" data-r="1.7778" aria-pressed="false">16:9</button>
+        <button class="chip swap" type="button" data-swap>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg>Bytt</button>
+      </div>
+      <p class="hint">Dra for å flytte · klyp med to fingre for å zoome</p>
+    </div>
+    <div id="vid-tools" class="ratios" hidden>
+      <span class="help" id="vid-size"></span>
+      <button class="chip swap" type="button" data-swap>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg>Bytt</button>
+    </div>
+    <label class="lbl" for="c-text">Tekst <em>(valgfritt)</em></label>
+    <textarea id="c-text" placeholder="Skriv noen ord …"></textarea>
+    <p class="lbl">Hvor lenge skal det være synlig?</p>
+    <div class="seg" id="seg">
+      <button type="button" data-d="2" aria-pressed="true">2 dager</button>
+      <button type="button" data-d="7" aria-pressed="false">7 dager</button>
+      <button type="button" data-d="30" aria-pressed="false">30 dager</button>
+      <button type="button" data-d="0" aria-pressed="false"><svg viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 7c-3-4-5.5-5-8-5a5 5 0 0 0 0 10c2.5 0 5-1 8-5zm0 0c3 4 5.5 5 8 5a5 5 0 0 0 0-10c-2.5 0-5 1-8 5z"/></svg>For alltid</button>
+    </div>
+    <p class="expiry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="expiry-text">Slettes for godt om 2 dager.</span></p>
+    <button class="cta" id="share" type="button">Del med KOMP</button>
+  </div>
+</section>
+
+<!-- ============ Meg ============ -->
+<section class="screen" id="me" hidden aria-label="Meg">
+  <div class="bar"><div class="wrap">
+    <button class="iconbtn" id="me-back" type="button" aria-label="Tilbake"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h2>Meg</h2>
+  </div></div>
+  <div class="wrap body">
+    <div class="profile-top">
+      <div class="big-av"><div class="av" id="me-av"></div>
+        <button class="cam" id="cam" type="button" aria-label="Bytt profilbilde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg></button>
+      </div>
+      <input type="file" id="av-file" accept="image/*" hidden>
+      <h3 id="me-name"></h3>
+      <p id="me-email"></p>
+    </div>
+
+    <div id="admin-box" hidden>
+      <p class="section-h">Admin</p>
+      <div class="card">
+        <b>Invitasjonslenke</b>
+        <span class="help">Send denne til familien. Alle med lenken kan lage en bruker.</span>
+        <div class="linkbox" id="invite-link">Henter …</div>
+        <div class="row2">
+          <button class="save on" type="button" id="invite-copy">Kopier lenke</button>
+          <button class="save" type="button" id="invite-new">Lag ny lenke</button>
+        </div>
+        <span class="help">«Lag ny lenke» gjør den gamle ugyldig. De som allerede har bruker, beholder den.</span>
+      </div>
+      <div class="card">
+        <b>Medlemmer</b>
+        <ul class="members" id="members"></ul>
+      </div>
+    </div>
+
+    <p class="section-h">Navn</p>
+    <div class="card">
+      <div class="field"><label for="name-in">Visningsnavn</label><input id="name-in" autocomplete="nickname"></div>
+      <span class="help">Slik vises du for de andre.</span>
+      <button class="save" id="name-save" type="button" disabled>Lagre navn</button>
+    </div>
+
+    <p class="section-h">Passord</p>
+    <div class="card">
+      <div class="field"><label for="pw-in">Nytt passord</label>
+        <div class="pw"><input id="pw-in" type="password" autocomplete="new-password"><button type="button" class="eye" data-for="pw-in" aria-label="Vis passord"></button></div></div>
+      <span class="help">Minst 8 tegn.</span>
+      <button class="save" id="pw-save" type="button" disabled>Lagre passord</button>
+    </div>
+
+    <p class="section-h">App</p>
+    <div class="card">
+      <button class="save on" type="button" id="show-install">Legg på hjemskjermen</button>
+      <button class="save" type="button" id="logout">Logg ut</button>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
