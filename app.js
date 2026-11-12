@@ -16,6 +16,7 @@ const ICON = {
 const params = new URLSearchParams(location.search);
 const inviteFromUrl = params.get("invite");
 const isStandalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
 
 let me = null;          // { id, email, profile }
@@ -162,7 +163,9 @@ async function enter(session) {
 async function startApp() {
   show("app");
   $("install-banner").hidden = !(isMobile && !isStandalone);
+  $("push-banner").hidden = !(pushState() === "ok" && Notification.permission === "default" && !store.get("komp-push-dismissed"));
   paintAv($("me-btn"), me.profile);
+  syncPush();
   await loadAll();
   if (!channel) {
     channel = sb.channel("posts")
@@ -231,6 +234,85 @@ async function purgeExpired() {
 
 $("install-banner").onclick = () => { show("install"); $("install-done").onclick = () => startApp(); };
 setInterval(() => { if (!$("app").hidden) render(); }, 60000);
+
+/* ---------- push-varsler ---------- */
+function pushState() {
+  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  if (!supported) return isIOS && !isStandalone ? "install" : "unsupported";
+  if (isIOS && !isStandalone) return "install";
+  if (Notification.permission === "denied") return "denied";
+  return "ok";
+}
+function b64u(s) {
+  const b = atob((s + "=".repeat((4 - s.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(b, c => c.charCodeAt(0));
+}
+async function currentSub() {
+  if (pushState() !== "ok") return null;
+  try { const reg = await navigator.serviceWorker.ready; return await reg.pushManager.getSubscription(); }
+  catch { return null; }
+}
+async function saveSub(sub) {
+  const j = sub.toJSON();
+  const { error } = await sb.rpc("save_push", { e: j.endpoint, k: j.keys.p256dh, a: j.keys.auth });
+  if (error) throw error;
+}
+// Kobler denne enheten til brukeren som er logget inn (f.eks. etter innlogging på nytt).
+async function syncPush() {
+  if (pushState() !== "ok" || Notification.permission !== "granted") return;
+  const sub = await currentSub();
+  if (sub) saveSub(sub).catch(() => {});
+}
+async function enablePush() {
+  const st = pushState();
+  if (st === "install") { toast("Legg KOMP på hjemskjermen først, og åpne den derfra."); return false; }
+  if (st === "unsupported") { toast("Denne enheten støtter ikke varsler."); return false; }
+  if (st === "denied") { toast("Varsler er blokkert. Slå dem på i innstillingene for KOMP."); return false; }
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") { toast("Varsler ble ikke slått på."); return false; }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(CFG.vapidPublicKey) });
+    await saveSub(sub);
+    toast("Varsler er på");
+    return true;
+  } catch {
+    toast("Fikk ikke slått på varsler. Prøv igjen.");
+    return false;
+  }
+}
+async function disablePush() {
+  const sub = await currentSub();
+  if (sub) { await sb.rpc("remove_push", { e: sub.endpoint }); await sub.unsubscribe().catch(() => {}); }
+  toast("Varsler er av");
+}
+async function paintPush() {
+  const sw = $("push-switch"), st = pushState();
+  const sub = st === "ok" && Notification.permission === "granted" ? await currentSub() : null;
+  sw.setAttribute("aria-checked", String(!!sub));
+  sw.disabled = st !== "ok";
+  $("push-help").textContent = {
+    install: "Legg KOMP på hjemskjermen og åpne den derfra, så kan du slå på varsler.",
+    unsupported: "Denne enheten eller nettleseren støtter ikke varsler.",
+    denied: "Varsler er blokkert. Slå dem på i telefonens innstillinger for KOMP.",
+    ok: "Få beskjed på denne enheten når noen deler noe."
+  }[st];
+}
+$("push-switch").onclick = async () => {
+  const sw = $("push-switch"); const on = sw.getAttribute("aria-checked") === "true";
+  sw.disabled = true;
+  if (on) await disablePush(); else await enablePush();
+  await paintPush();
+  $("push-banner").hidden = true;
+};
+$("push-banner").onclick = async () => {
+  store.set("komp-push-dismissed", "1");
+  await enablePush();
+  $("push-banner").hidden = true;
+};
+// Hent nye innlegg når appen åpnes igjen (f.eks. fra et varsel).
+document.addEventListener("visibilitychange", () => { if (!document.hidden && me && !$("app").hidden) loadAll(); });
 
 /* ---------- nytt innlegg ---------- */
 let src = null, kind = null, file = null, iw = 0, ih = 0, ratio = 0, zoom = 1, ox = 0, oy = 0, fw = 0, fh = 0, days = 2, objUrl = null;
@@ -339,6 +421,7 @@ function openMe() {
   $("pw-in").value = ""; $("pw-save").disabled = true;
   $("show-install").hidden = isStandalone;
   $("admin-box").hidden = !me.profile.is_admin;
+  paintPush();
   if (me.profile.is_admin) loadAdmin();
   $("me").hidden = false; document.body.style.overflow = "hidden";
 }
@@ -379,6 +462,8 @@ $("av-file").onchange = async e => {
 };
 $("show-install").onclick = () => { $("me").hidden = true; show("install"); $("install-done").onclick = () => startApp(); };
 $("logout").onclick = async () => {
+  const sub = await currentSub();
+  if (sub) { await sb.rpc("remove_push", { e: sub.endpoint }); await sub.unsubscribe().catch(() => {}); }
   if (channel) { sb.removeChannel(channel); channel = null; }
   await sb.auth.signOut(); me = null; urls = {}; showAuth("login");
 };

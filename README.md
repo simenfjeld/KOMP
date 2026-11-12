@@ -35,3 +35,10 @@ Som admin kan du også:
 - **iPhone/iPad**: når KOMP er lagt på hjemskjermen, må man logge inn én gang til i appen. Det er sånn Apple gjør det.
 - **Gratisplanen** gir 1 GB lagring. Med 2-dagers innlegg som standard holder det lenge.
 - **Oppdatere appen**: endre filene og dra mappen inn på Netlify igjen (Deploys → dra inn ny versjon).
+
+## Varsler om nye innlegg
+Oppsettet står i `supabase-varsler.sql` og `supabase/functions/notify/index.ts`.
+Nøklene som signerer varslene ligger ikke i repoet; de legges inn i tabellen `app_secrets` med en egen SQL-blokk.
+- iPhone/iPad: varsler virker bare når KOMP er lagt på hjemskjermen og åpnet derfra (iOS 16.4 eller nyere).
+- Hver person slår på varsler selv, enten med banneret øverst i feeden eller under «Meg».
+- Den som deler, får ikke varsel om sitt eget innlegg.

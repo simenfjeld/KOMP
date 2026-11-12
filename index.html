@@ -66,6 +66,7 @@
         nederst i Safari. På iPad ligger den øverst.<small>Android: trykk på menyen <b>⋮</b> øverst til høyre i Chrome.</small></div></li>
       <li><span class="num">2</span><div>Bla ned og velg <b>Legg til på Hjem-skjerm</b>.<small>Android: velg <b>Legg til på startsiden</b> eller <b>Installer app</b>.</small></div></li>
       <li><span class="num">3</span><div>Trykk <b>Legg til</b>. Åpne så KOMP fra hjemskjermen og logg inn med e-post og passord.</div></li>
+      <li><span class="num">4</span><div>Trykk <b>Slå på varsler</b> øverst i KOMP, så får du beskjed når noen deler noe.</div></li>
     </ol>
     <p class="help">Bruker du iPhone eller iPad, må lenken være åpnet i Safari for at dette skal fungere.</p>
     <button class="cta" type="button" id="install-done">Fortsett til KOMP</button>
@@ -84,6 +85,10 @@
     <button class="banner" id="install-banner" type="button" hidden>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>
       <span>Legg KOMP på hjemskjermen</span>
+    </button>
+    <button class="banner" id="push-banner" type="button" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span>Slå på varsler, så får du beskjed når noen deler noe</span>
     </button>
     <div id="posts" class="posts"><p class="empty">Henter bilder …</p></div>
   </main>
@@ -170,6 +175,14 @@
       <div class="card">
         <b>Medlemmer</b>
         <ul class="members" id="members"></ul>
+      </div>
+    </div>
+
+    <p class="section-h">Varsler</p>
+    <div class="card">
+      <div class="toggle-row">
+        <div><b>Varsel om nye innlegg</b><span id="push-help">Få beskjed på denne enheten når noen deler noe.</span></div>
+        <button class="switch" id="push-switch" type="button" role="switch" aria-checked="false" aria-label="Varsel om nye innlegg"></button>
       </div>
     </div>
 

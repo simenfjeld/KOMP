@@ -1,6 +1,6 @@
 // Enkel service worker: gjør appen installerbar og laster appskallet raskt.
 // Bilder og data hentes alltid fersk fra Supabase.
-const CACHE = "komp-v1";
+const CACHE = "komp-v2";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.webmanifest", "icons/icon-192.png"];
 
 self.addEventListener("install", e => {
@@ -20,4 +20,25 @@ self.addEventListener("fetch", e => {
       return res;
     }).catch(() => caches.match(e.request))
   );
+});
+
+// Push-varsler: vis varselet, og åpne KOMP når man trykker på det.
+self.addEventListener("push", e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "KOMP", {
+    body: d.body || "Noen har delt noe nytt.",
+    icon: "icons/icon-192.png",
+    badge: "icons/icon-192.png",
+    tag: d.tag,
+    data: { url: d.url || "./" }
+  }));
+});
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "./", self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(wins => {
+    for (const w of wins) if ("focus" in w) return w.focus();
+    return self.clients.openWindow(url);
+  }));
 });
