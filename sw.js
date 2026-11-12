@@ -1,6 +1,6 @@
 // Enkel service worker: gjør appen installerbar og laster appskallet raskt.
 // Bilder og data hentes alltid fersk fra Supabase.
-const CACHE = "komp-v2";
+const CACHE = "komp-v3";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.webmanifest", "icons/icon-192.png"];
 
 self.addEventListener("install", e => {
