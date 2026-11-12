@@ -32,7 +32,15 @@ const store = {
 };
 function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 function toast(t) { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2200); }
+function hideSplash() {
+  const sp = $("splash");
+  if (!sp || sp.classList.contains("gone")) return;
+  sp.classList.add("gone");
+  setTimeout(() => sp.remove(), 300);
+}
+setTimeout(hideSplash, 6000); // sikkerhetsnett hvis nettet er tregt
 function show(id) {
+  if (id !== "app") hideSplash();
   ["auth", "install", "app"].forEach(s => $(s).hidden = s !== id);
   ["compose", "me"].forEach(s => $(s).hidden = true);
   document.body.style.overflow = id === "app" ? "" : "hidden";
@@ -167,6 +175,7 @@ async function startApp() {
   paintAv($("me-btn"), me.profile);
   syncPush();
   await loadAll();
+  hideSplash();
   if (!channel) {
     channel = sb.channel("posts")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => loadAll())
