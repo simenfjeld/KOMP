@@ -23,6 +23,23 @@ let me = null;          // { id, email, profile }
 let profiles = {};      // id -> profile
 let posts = [];
 let urls = {};          // storage path -> signed url
+let urlExp = {};        // storage path -> når lenken utløper (ms)
+const loadedImgs = new Set();
+const FEED_CACHE = "komp-feed-v1";
+function saveFeedCache() {
+  if (!me) return;
+  store.set(FEED_CACHE, JSON.stringify({ me, posts: posts.slice(0, 60), profiles, urls, urlExp }));
+}
+function readFeedCache() {
+  try { return JSON.parse(store.get(FEED_CACHE) || "null"); } catch { return null; }
+}
+function skeleton() {
+  const card = `<article class="post sk"><div class="post-head"><div class="av"></div>
+    <div class="who"><span class="line" style="width:42%"></span><span class="line" style="width:64%"></span></div></div>
+    <div class="box"></div></article>`;
+  return card + card;
+}
+window.imgIn = el => { el.classList.add("in"); loadedImgs.add(el.getAttribute("src")); };
 let channel = null;
 
 /* ---------- små hjelpere ---------- */
@@ -32,15 +49,7 @@ const store = {
 };
 function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 function toast(t) { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2200); }
-function hideSplash() {
-  const sp = $("splash");
-  if (!sp || sp.classList.contains("gone")) return;
-  sp.classList.add("gone");
-  setTimeout(() => sp.remove(), 300);
-}
-setTimeout(hideSplash, 6000); // sikkerhetsnett hvis nettet er tregt
 function show(id) {
-  if (id !== "app") hideSplash();
   ["auth", "install", "app"].forEach(s => $(s).hidden = s !== id);
   ["compose", "me"].forEach(s => $(s).hidden = true);
   document.body.style.overflow = id === "app" ? "" : "hidden";
@@ -169,13 +178,17 @@ async function enter(session) {
 }
 
 async function startApp() {
-  show("app");
+  if ($("app").hidden) show("app");
+  if (!posts.length) {
+    const c = readFeedCache();
+    if (c && c.me && c.me.id === me.id) { posts = c.posts || []; profiles = c.profiles || {}; urls = c.urls || {}; urlExp = c.urlExp || {}; render(); }
+    else $("posts").innerHTML = skeleton();
+  }
   $("install-banner").hidden = !(isMobile && !isStandalone);
   $("push-banner").hidden = !(pushState() === "ok" && Notification.permission === "default" && !store.get("komp-push-dismissed"));
   paintAv($("me-btn"), me.profile);
   syncPush();
   await loadAll();
-  hideSplash();
   if (!channel) {
     channel = sb.channel("posts")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => loadAll())
@@ -193,13 +206,16 @@ async function loadAll() {
   profiles = Object.fromEntries((profs || []).map(p => [p.id, p]));
   if (profiles[me.id]) me.profile = profiles[me.id];
   posts = ps || [];
+  const soon = Date.now() + 30 * 60e3;
   const paths = [...posts.map(p => p.media_path), ...Object.values(profiles).map(p => p.avatar_path).filter(Boolean)]
-    .filter(p => !urls[p]);
+    .filter(p => !urls[p] || !(urlExp[p] > soon));
   if (paths.length) {
-    const { data } = await sb.storage.from("media").createSignedUrls(paths, 60 * 60 * 6);
-    (data || []).forEach(d => { if (d.signedUrl) urls[d.path] = d.signedUrl; });
+    // Lenkene gjelder i 7 dager og gjenbrukes, så bildene ligger i telefonens hurtigminne neste gang appen åpnes.
+    const { data } = await sb.storage.from("media").createSignedUrls(paths, 60 * 60 * 24 * 7);
+    (data || []).forEach(d => { if (d.signedUrl) { urls[d.path] = d.signedUrl; urlExp[d.path] = Date.now() + 60 * 60 * 24 * 7 * 1000; } });
   }
   render();
+  saveFeedCache();
 }
 
 function render() {
@@ -212,7 +228,7 @@ function render() {
     const ar = p.width && p.height ? `aspect-ratio:${p.width}/${p.height}` : "";
     const media = p.media_type === "video"
       ? `<video class="media" src="${url}" style="${ar}" controls playsinline preload="metadata"></video>`
-      : `<img class="media" src="${url}" style="${ar}" alt="Bilde fra ${esc(a.display_name)}" loading="lazy">`;
+      : `<img class="media${loadedImgs.has(url) ? " in" : ""}" src="${url}" style="${ar}" alt="Bilde fra ${esc(a.display_name)}" onload="imgIn(this)">`;
     const canDelete = p.author === me.id || me.profile.is_admin;
     return `<article class="post">
       <div class="post-head">
@@ -474,7 +490,7 @@ $("logout").onclick = async () => {
   const sub = await currentSub();
   if (sub) { await sb.rpc("remove_push", { e: sub.endpoint }); await sub.unsubscribe().catch(() => {}); }
   if (channel) { sb.removeChannel(channel); channel = null; }
-  await sb.auth.signOut(); me = null; urls = {}; showAuth("login");
+  await sb.auth.signOut(); me = null; urls = {}; urlExp = {}; posts = []; profiles = {}; store.set(FEED_CACHE, ""); showAuth("login");
 };
 
 /* ---------- Admin ---------- */
@@ -532,6 +548,18 @@ sb.auth.onAuthStateChange((event, session) => {
     showAuth("msg"); $("msg-text").textContent = "KOMP er ikke satt opp ennå. Fyll inn Supabase-adressen og nøkkelen i config.js."; return;
   }
   const { data: { session } } = await sb.auth.getSession();
+  const c = readFeedCache();
+  if (session && (isStandalone || !isMobile || store.get("komp-install-seen"))) {
+    show("app");
+    if (c && c.me && c.me.id === session.user.id) {
+      // Vis forrige feed med en gang, og oppdater den i bakgrunnen
+      me = c.me; posts = c.posts || []; profiles = c.profiles || {}; urls = c.urls || {}; urlExp = c.urlExp || {};
+      render();
+    } else {
+      $("posts").innerHTML = skeleton();
+      $("me-btn").setAttribute("style", "background:var(--raised)");
+    }
+  }
   if (session && !location.hash.includes("type=recovery")) await enter(session);
   else if (!session) showAuth(inviteFromUrl ? "signup" : "login");
 })();

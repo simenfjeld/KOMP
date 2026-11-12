@@ -132,3 +132,15 @@ textarea{min-height:90px;resize:vertical}
 .switch[aria-checked="true"]::after{transform:translateX(20px)}
 .switch:disabled{opacity:.45}
 @media (prefers-reduced-motion:reduce){.switch,.switch::after{transition:none}}
+
+/* Plassholdere mens feeden lastes, og myk inntoning av bilder */
+.media{background:var(--raised)}
+img.media{opacity:0;transition:opacity .3s ease}
+img.media.in{opacity:1}
+.sk .av,.sk .line,.sk .box{background:var(--raised)}
+.sk .line{height:11px;border-radius:6px}
+.sk .box{aspect-ratio:4/5;width:100%}
+.sk .who{display:flex;flex-direction:column;gap:7px}
+.sk{animation:skpulse 1.4s ease-in-out infinite}
+@keyframes skpulse{0%,100%{opacity:1}50%{opacity:.6}}
+@media (prefers-reduced-motion:reduce){img.media{transition:none}.sk{animation:none}}
