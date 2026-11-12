@@ -485,6 +485,16 @@ $("invite-copy").onclick = async () => {
   try { await navigator.clipboard.writeText(t); toast("Lenken er kopiert"); }
   catch { const r = document.createRange(); r.selectNodeContents($("invite-link")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Marker og kopier lenken"); }
 };
+$("invite-share").onclick = async () => {
+  const url = $("invite-link").textContent;
+  const text = "Bli med i KOMP, familiens egen bildedeling! Trykk på lenken og lag en bruker:";
+  if (navigator.share) {
+    try { await navigator.share({ title: "KOMP", text, url }); } catch { /* avbrutt */ }
+  } else {
+    try { await navigator.clipboard.writeText(text + " " + url); toast("Meldingen er kopiert, lim den inn i en SMS"); }
+    catch { toast("Kopier lenken over og send den på SMS"); }
+  }
+};
 $("invite-new").onclick = async () => {
   if (!confirm("Lage ny lenke? Den gamle slutter å virke for nye brukere.")) return;
   await loadAdmin(true); toast("Ny lenke er laget");
