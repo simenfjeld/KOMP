@@ -10,6 +10,8 @@ const AV_COLORS = [["#C08A2E","#7E7A2C"],["#B86FB0","#C4466A"],["#D58A2E","#A35A
 const ICON = {
   glass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 2h12M6 22h12M7 2c0 5 10 5 10 10S7 17 7 22M17 2c0 5-10 5-10 10s10 5 10 10"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  sound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
+  muted: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor"/><path d="m16 9 5 6M21 9l-5 6"/></svg>',
   eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
 };
 
@@ -222,12 +224,20 @@ function render() {
   paintAv($("me-btn"), me.profile);
   const live = posts.filter(p => !p.expires_at || new Date(p.expires_at) > Date.now());
   if (!live.length) { $("posts").innerHTML = '<p class="empty">Ingen bilder akkurat nå. Trykk på + for å dele noe.</p>'; return; }
+  const keep = {};
+  document.querySelectorAll("#posts .vwrap").forEach(w => { keep[w.dataset.vid] = w; });
   $("posts").innerHTML = live.map(p => {
     const a = profiles[p.author] || { display_name: "Ukjent", color: 0 };
     const url = urls[p.media_path] || "";
     const ar = p.width && p.height ? `aspect-ratio:${p.width}/${p.height}` : "";
+    // Stående video vises maks 4:5, som på Instagram
+    const var_ = p.width && p.height ? `aspect-ratio:${Math.max(p.width / p.height, 0.8)}` : "aspect-ratio:4/5";
     const media = p.media_type === "video"
-      ? `<video class="media" src="${url}" style="${ar}" controls playsinline preload="metadata"></video>`
+      ? `<div class="vwrap" data-vid="${p.id}" data-src="${url}">
+          <video class="media" src="${url}#t=0.1" style="${var_}" muted playsinline loop preload="metadata"></video>
+          <span class="vtime">0:00</span>
+          <button class="vsound" type="button" aria-label="Slå på lyd">${ICON.muted}</button>
+        </div>`
       : `<img class="media${loadedImgs.has(url) ? " in" : ""}" src="${url}" style="${ar}" alt="Bilde fra ${esc(a.display_name)}" onload="imgIn(this)">`;
     const canDelete = p.author === me.id || me.profile.is_admin;
     return `<article class="post">
@@ -240,7 +250,70 @@ function render() {
       ${p.caption ? `<p class="caption">${esc(p.caption)}</p>` : ""}
     </article>`;
   }).join("");
+  document.querySelectorAll("#posts .vwrap").forEach(w => {
+    const old = keep[w.dataset.vid];
+    if (old && old.dataset.src === w.dataset.src) w.replaceWith(old); else setupVideo(w);
+  });
+  observeVideos();
 }
+
+/* ---------- video i feeden: spiller av seg selv uten lyd, som på Instagram ---------- */
+let soundOn = false;
+const fmt = s => { s = Math.max(0, Math.ceil(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+function setupVideo(w) {
+  const v = w.querySelector("video"), t = w.querySelector(".vtime");
+  const tick = () => { if (isFinite(v.duration)) t.textContent = fmt(v.duration - v.currentTime); };
+  v.addEventListener("loadedmetadata", tick);
+  v.addEventListener("timeupdate", tick);
+}
+function paintSound() {
+  document.querySelectorAll("#posts .vwrap").forEach(w => {
+    const v = w.querySelector("video"), b = w.querySelector(".vsound");
+    const on = !v.muted;
+    b.innerHTML = on ? ICON.sound : ICON.muted;
+    b.setAttribute("aria-label", on ? "Slå av lyd" : "Slå på lyd");
+  });
+}
+// Spill av videoen som er mest synlig, pause resten
+function syncVideos() {
+  const vids = [...document.querySelectorAll("#posts .vwrap video")];
+  const covered = $("app").hidden || !$("compose").hidden || !$("me").hidden || document.hidden;
+  let best = null, bestRatio = 0;
+  if (!covered) {
+    const vh = innerHeight;
+    vids.forEach(v => {
+      const r = v.getBoundingClientRect();
+      const ratio = r.height ? Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0)) / r.height : 0;
+      if (ratio > bestRatio) { bestRatio = ratio; best = v; }
+    });
+    if (bestRatio < 0.6) best = null;
+  }
+  vids.forEach(v => {
+    if (v === best) {
+      v.muted = !soundOn;
+      if (v.paused) v.play().catch(() => { v.muted = true; v.play().catch(() => {}); paintSound(); });
+    } else if (!v.paused) v.pause();
+  });
+  paintSound();
+}
+let vidObserver = null;
+function observeVideos() {
+  if (!("IntersectionObserver" in window)) return;
+  if (!vidObserver) vidObserver = new IntersectionObserver(syncVideos, { threshold: [0, 0.3, 0.6, 0.9, 1] });
+  vidObserver.disconnect();
+  document.querySelectorAll("#posts .vwrap video").forEach(v => vidObserver.observe(v));
+  syncVideos();
+}
+// Trykk på videoen eller lydknappen: lyd av/på (gjelder alle videoer, som på Instagram)
+$("posts").addEventListener("click", e => {
+  const w = e.target.closest(".vwrap"); if (!w) return;
+  const v = w.querySelector("video");
+  soundOn = v.muted;
+  v.muted = !soundOn;
+  if (v.paused) v.play().catch(() => {});
+  paintSound();
+});
+document.addEventListener("visibilitychange", syncVideos);
 
 $("posts").addEventListener("click", async e => {
   const b = e.target.closest("[data-del]"); if (!b) return;
@@ -369,7 +442,7 @@ $("file").onchange = async e => {
   $("img-tools").hidden = kind !== "image"; $("vid-tools").hidden = kind !== "video";
   if (first) { $("c-text").value = ""; setDays(2); setRatio(0); }
   zoom = 1; ox = oy = 0; $("zoom").value = 1;
-  $("compose").hidden = false; document.body.style.overflow = "hidden";
+  $("compose").hidden = false; document.body.style.overflow = "hidden"; syncVideos();
   $("share").disabled = false; $("share").textContent = "Del med KOMP";
   if (kind === "image") layout();
 };
@@ -403,7 +476,7 @@ function setDays(d) {
   $("expiry-text").textContent = d ? `Slettes for godt om ${d} dager.` : "Ligger ute til du sletter det.";
 }
 $("seg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setDays(+b.dataset.d); });
-function closeCompose() { $("compose").hidden = true; document.body.style.overflow = ""; cvid.pause(); }
+function closeCompose() { $("compose").hidden = true; document.body.style.overflow = ""; cvid.pause(); syncVideos(); }
 $("c-close").onclick = closeCompose;
 
 function croppedBlob() {
@@ -448,10 +521,10 @@ function openMe() {
   $("admin-box").hidden = !me.profile.is_admin;
   paintPush();
   if (me.profile.is_admin) loadAdmin();
-  $("me").hidden = false; document.body.style.overflow = "hidden";
+  $("me").hidden = false; document.body.style.overflow = "hidden"; syncVideos();
 }
 $("me-btn").onclick = openMe;
-$("me-back").onclick = () => { $("me").hidden = true; document.body.style.overflow = ""; render(); };
+$("me-back").onclick = () => { $("me").hidden = true; document.body.style.overflow = ""; render(); syncVideos(); };
 
 $("name-in").oninput = e => { const v = e.target.value.trim(); $("name-save").disabled = !v || v === me.profile.display_name; };
 $("name-save").onclick = async () => {

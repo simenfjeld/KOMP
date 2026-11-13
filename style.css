@@ -144,3 +144,11 @@ img.media.in{opacity:1}
 .sk{animation:skpulse 1.4s ease-in-out infinite}
 @keyframes skpulse{0%,100%{opacity:1}50%{opacity:.6}}
 @media (prefers-reduced-motion:reduce){img.media{transition:none}.sk{animation:none}}
+
+/* Video i feeden, som på Instagram */
+.vwrap{position:relative;cursor:pointer}
+.vwrap video{display:block;width:100%;object-fit:cover;background:#000;opacity:1}
+.vtime,.vsound{position:absolute;bottom:10px;background:rgb(0 0 0 / .55);color:#fff;border-radius:999px;font-variant-numeric:tabular-nums}
+.vtime{left:10px;padding:3px 8px;font-size:.75rem;font-weight:600;pointer-events:none}
+.vsound{right:10px;width:30px;height:30px;display:grid;place-items:center}
+.vsound svg{width:16px;height:16px}
